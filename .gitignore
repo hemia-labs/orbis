@@ -1,6 +1,8 @@
-# Nestjs specific
-/dist
+# Dependencies
 /node_modules
+
+# Build output
+/dist
 /build
 /tmp
 
@@ -22,3 +24,6 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+
+# pnpm
+pnpm-store

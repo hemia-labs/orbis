@@ -1,0 +1,4 @@
+interface:
+  display_name: "NestJS Backend Guide"
+  short_description: "Arquitectura y estándares para backends NestJS"
+  default_prompt: "Usa esta skill para crear, revisar o modificar módulos backend siguiendo arquitectura NestJS, TypeORM, DTOs, permisos y migraciones."

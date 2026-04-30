@@ -1,0 +1,22 @@
+{
+  "name": "orbis",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Orbis monorepo",
+  "scripts": {
+    "dev:backend": "pnpm -C backend start:dev",
+    "dev:frontend": "pnpm -C frontend dev",
+    "build:backend": "pnpm -C backend build",
+    "build:frontend": "pnpm -C frontend build",
+    "build": "pnpm -r build",
+    "test:backend": "pnpm -C backend test",
+    "test:frontend": "pnpm -C frontend test:unit",
+    "test": "pnpm -r test",
+    "lint:backend": "pnpm -C backend lint",
+    "lint:frontend": "pnpm -C frontend lint",
+    "lint": "pnpm -r lint",
+    "format:backend": "pnpm -C backend format",
+    "format:frontend": "pnpm -C frontend format",
+    "format": "pnpm -r format"
+  }
+}

@@ -1,4 +1,4 @@
 interface:
   display_name: "NestJS Backend Guide"
   short_description: "Arquitectura y estándares para backends NestJS"
-  default_prompt: "Usa esta skill para crear, revisar o modificar módulos backend siguiendo arquitectura NestJS, TypeORM, DTOs, permisos y migraciones."
+  default_prompt: "Usa esta skill para crear, revisar o modificar módulos backend siguiendo arquitectura NestJS, TypeORM, DTOs, permisos y migraciones. Para base de datos usa el formato documentado: DatabaseModule con TypeOrmModule.forRootAsync + ConfigService, ConfigModule global con envFilePath ['.env', '.env.local'] y validationSchema, y data-source.ts separado para comandos CLI de migraciones."

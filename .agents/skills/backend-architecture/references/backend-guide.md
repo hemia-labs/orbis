@@ -71,12 +71,121 @@ Runtime DB vive normalmente en `src/database/database.module.ts`:
 - Entidades por glob `**/*.entity.ts/js`.
 - `synchronize: false`.
 - Logging controlado por env.
+- Timezone PostgreSQL: `America/Mexico_City` vía `extra.options`.
+
+Formato esperado:
+
+```ts
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import * as path from 'path';
+
+@Module({
+  imports: [
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        return {
+          type: 'postgres',
+          host: configService.get<string>('DB_HOST'),
+          port: configService.get<number>('DB_PORT', 5432),
+          username: configService.get<string>('DB_USERNAME'),
+          password: configService.get<string>('DB_PASSWORD'),
+          database: configService.get<string>('DB_DATABASE'),
+          entities: [
+            path.join(__dirname, '..', '**', '*.entity.ts'),
+            path.join(__dirname, '..', '**', '*.entity.js'),
+          ],
+          synchronize: false,
+          logging: true,
+          extra: {
+            options: '-c timezone=America/Mexico_City',
+          },
+        };
+      },
+    }),
+  ],
+})
+export class DatabaseModule {}
+```
+
+`AppModule` debe cargar configuración global antes de `DatabaseModule`:
+
+```ts
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env', '.env.local'],
+      validationSchema: envVarsSchema,
+      validationOptions: {
+        allowUnknown: true,
+        abortEarly: true,
+      },
+    }),
+    DatabaseModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
+```
+
+Variables esperadas:
+
+```text
+DB_HOST=
+DB_PORT=5432
+DB_USERNAME=
+DB_PASSWORD=
+DB_DATABASE=
+```
 
 CLI de migraciones suele vivir en `data-source.ts`:
 
 - Carga `.env` y `.env.local`.
 - Usa `src/**/*.entity.ts` en dev y `dist/**/*.entity.js` en prod.
 - Usa `src/database/migrations/*.ts` o `dist/database/migrations/*.js`.
+- Existe separado de `DatabaseModule` porque TypeORM CLI necesita instanciar `DataSource` fuera del ciclo de NestJS.
+
+Formato esperado para migraciones:
+
+```ts
+import { DataSource } from 'typeorm';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+dotenv.config({ path: '.env' });
+dotenv.config({ path: '.env.local' });
+
+const isProduction = process.env.NODE_ENV === 'production';
+const extension = isProduction ? 'js' : 'ts';
+const baseDir = isProduction ? 'dist' : 'src';
+
+export const AppDataSource = new DataSource({
+  type: 'postgres',
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT) || 5432,
+  username: process.env.DB_USERNAME?.toString(),
+  password: process.env.DB_PASSWORD?.toString(),
+  database: process.env.DB_DATABASE?.toString(),
+  entities: [path.join(process.cwd(), `${baseDir}/**/*.entity.${extension}`)],
+  migrations: [path.join(process.cwd(), `${baseDir}/database/migrations/*.${extension}`)],
+});
+
+if (require.main === module) {
+  AppDataSource.initialize()
+    .then(() => {
+      console.log('Data Source has been initialized!');
+    })
+    .catch((err) => {
+      console.error('Error during Data Source initialization:', err);
+      process.exit(1);
+    });
+}
+```
 
 No usar cambios manuales en DB sin reflejarlos en migración. Desde esta skill, no generar ni ejecutar migraciones salvo instrucción explícita del usuario; indicar que el cambio requiere migración manual.
 

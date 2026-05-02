@@ -1,13 +1,27 @@
 import { MigrationInterface, QueryRunner } from "typeorm";
 
-export class Migration1777612802769 implements MigrationInterface {
-    name = 'Migration1777612802769'
+export class Migration1777700973108 implements MigrationInterface {
+    name = 'Migration1777700973108'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" text NOT NULL, "name" text, "lastname" text, "password_hash" text, "avatar_url" text, "status" character varying NOT NULL DEFAULT 'pending', "email_verified_at" TIMESTAMP WITH TIME ZONE, "last_login_at" TIMESTAMP WITH TIME ZONE, "metadata" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "users_email_unique_active" ON "users" ("email") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE TABLE "refresh_tokens" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "user_id" uuid NOT NULL, "token" text NOT NULL, "expires_at" TIMESTAMP NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), "is_revoked" boolean NOT NULL DEFAULT false, CONSTRAINT "PK_7d8bee0204106019488c4c50ffa" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE INDEX "idx_refresh_token_expires_at" ON "refresh_tokens" ("expires_at") `);
+        await queryRunner.query(`CREATE INDEX "idx_refresh_token_user_id" ON "refresh_tokens" ("user_id") `);
         await queryRunner.query(`CREATE TABLE "organizations" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "slug" text NOT NULL, "billing_email" text, "plan" character varying NOT NULL DEFAULT 'free', "status" character varying NOT NULL DEFAULT 'active', "metadata" jsonb NOT NULL DEFAULT '{}', "suspended_at" TIMESTAMP WITH TIME ZONE, "disabled_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_6b031fcd0863e3f6b44230163f9" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE UNIQUE INDEX "organizations_slug_unique_active" ON "organizations" ("slug") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE TABLE "permissions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "slug" text NOT NULL, "description" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "UQ_d090ad82a0e97ce764c06c7b312" UNIQUE ("slug"), CONSTRAINT "PK_920331560282b8bd21bb02290df" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "permissions_slug_unique_active" ON "permissions" ("slug") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE TABLE "roles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "organization_id" uuid, "name" text NOT NULL, "slug" text NOT NULL, "description" text, "scope" character varying NOT NULL DEFAULT 'organization', "level" integer NOT NULL DEFAULT '100', "is_system" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_c1433d71a4838793a49dcad46ab" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "roles_system_slug_unique_active" ON "roles" ("slug") WHERE organization_id IS NULL AND deleted_at IS NULL`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "roles_organization_slug_unique_active" ON "roles" ("organization_id", "slug") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE TABLE "memberships" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "status" character varying NOT NULL DEFAULT 'active', "invited_at" TIMESTAMP WITH TIME ZONE, "joined_at" TIMESTAMP WITH TIME ZONE, "suspended_at" TIMESTAMP WITH TIME ZONE, "removed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "organization_id" uuid, "user_id" uuid, "role_id" uuid, "invited_by" uuid, CONSTRAINT "PK_25d28bd932097a9e90495ede7b4" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE INDEX "memberships_status_idx" ON "memberships" ("status") `);
+        await queryRunner.query(`CREATE INDEX "memberships_role_id_idx" ON "memberships" ("role_id") `);
+        await queryRunner.query(`CREATE INDEX "memberships_user_id_idx" ON "memberships" ("user_id") `);
+        await queryRunner.query(`CREATE INDEX "memberships_organization_id_idx" ON "memberships" ("organization_id") `);
+        await queryRunner.query(`CREATE UNIQUE INDEX "memberships_organization_user_unique_active" ON "memberships" ("organization_id", "user_id") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE TABLE "users" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "email" text NOT NULL, "name" text, "lastname" text, "password_hash" text, "avatar_url" text, "status" character varying NOT NULL DEFAULT 'pending', "email_verified_at" TIMESTAMP WITH TIME ZONE, "last_login_at" TIMESTAMP WITH TIME ZONE, "metadata" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_a3ffb1c0c8416b9fc6f907b7433" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "users_email_unique_active" ON "users" ("email") WHERE deleted_at IS NULL`);
         await queryRunner.query(`CREATE TABLE "projects" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "slug" text NOT NULL, "description" text, "status" character varying NOT NULL DEFAULT 'active', "latest_version" text, "settings" jsonb NOT NULL DEFAULT '{}', "metadata" jsonb NOT NULL DEFAULT '{}', "archived_at" TIMESTAMP WITH TIME ZONE, "disabled_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "organization_id" uuid, CONSTRAINT "PK_6271df0a7aed1d6c0691ce6ac50" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE INDEX "projects_status_idx" ON "projects" ("status") `);
         await queryRunner.query(`CREATE INDEX "projects_organization_id_idx" ON "projects" ("organization_id") `);
@@ -56,6 +70,16 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "theme_overrides_token_id_idx" ON "theme_overrides" ("token_id") `);
         await queryRunner.query(`CREATE INDEX "theme_overrides_theme_id_idx" ON "theme_overrides" ("theme_id") `);
         await queryRunner.query(`CREATE UNIQUE INDEX "theme_overrides_theme_token_unique_active" ON "theme_overrides" ("theme_id", "token_id") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE TABLE "team_memberships" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "status" character varying NOT NULL DEFAULT 'active', "metadata" jsonb NOT NULL DEFAULT '{}', "joined_at" TIMESTAMP WITH TIME ZONE, "removed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "team_id" uuid, "membership_id" uuid, "role_id" uuid, CONSTRAINT "PK_053171f713ec8a2f09ed58f08f7" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "team_memberships_team_membership_unique_active" ON "team_memberships" ("team_id", "membership_id") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE INDEX "team_memberships_status_idx" ON "team_memberships" ("status") `);
+        await queryRunner.query(`CREATE INDEX "team_memberships_role_id_idx" ON "team_memberships" ("role_id") `);
+        await queryRunner.query(`CREATE INDEX "team_memberships_membership_id_idx" ON "team_memberships" ("membership_id") `);
+        await queryRunner.query(`CREATE INDEX "team_memberships_team_id_idx" ON "team_memberships" ("team_id") `);
+        await queryRunner.query(`CREATE TABLE "teams" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "slug" text NOT NULL, "description" text, "status" character varying NOT NULL DEFAULT 'active', "metadata" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "organization_id" uuid, CONSTRAINT "PK_7e5523774a38b08a6236d322403" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "teams_organization_slug_unique_active" ON "teams" ("organization_id", "slug") WHERE deleted_at IS NULL`);
+        await queryRunner.query(`CREATE INDEX "teams_status_idx" ON "teams" ("status") `);
+        await queryRunner.query(`CREATE INDEX "teams_organization_id_idx" ON "teams" ("organization_id") `);
         await queryRunner.query(`CREATE TABLE "apps" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "slug" text NOT NULL, "description" text, "platform" character varying NOT NULL, "framework" character varying NOT NULL, "repo_url" text, "current_version" text, "status" character varying NOT NULL DEFAULT 'active', "sync_status" character varying NOT NULL DEFAULT 'never_synced', "last_sync_at" TIMESTAMP WITH TIME ZONE, "settings" jsonb NOT NULL DEFAULT '{}', "metadata" jsonb NOT NULL DEFAULT '{}', "paused_at" TIMESTAMP WITH TIME ZONE, "archived_at" TIMESTAMP WITH TIME ZONE, "disabled_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "organization_id" uuid, "project_id" uuid, "environment_id" uuid, CONSTRAINT "PK_c5121fda0f8268f1f7f84134e19" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE INDEX "apps_sync_status_idx" ON "apps" ("sync_status") `);
         await queryRunner.query(`CREATE INDEX "apps_status_idx" ON "apps" ("status") `);
@@ -65,11 +89,6 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "apps_project_id_idx" ON "apps" ("project_id") `);
         await queryRunner.query(`CREATE INDEX "apps_organization_id_idx" ON "apps" ("organization_id") `);
         await queryRunner.query(`CREATE UNIQUE INDEX "apps_project_environment_slug_unique_active" ON "apps" ("project_id", "environment_id", "slug") WHERE deleted_at IS NULL`);
-        await queryRunner.query(`CREATE TABLE "permissions" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "slug" text NOT NULL, "description" text, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "UQ_d090ad82a0e97ce764c06c7b312" UNIQUE ("slug"), CONSTRAINT "PK_920331560282b8bd21bb02290df" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "permissions_slug_unique_active" ON "permissions" ("slug") WHERE deleted_at IS NULL`);
-        await queryRunner.query(`CREATE TABLE "roles" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "organization_id" uuid, "name" text NOT NULL, "slug" text NOT NULL, "description" text, "scope" character varying NOT NULL DEFAULT 'organization', "level" integer NOT NULL DEFAULT '100', "is_system" boolean NOT NULL DEFAULT false, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_c1433d71a4838793a49dcad46ab" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "roles_system_slug_unique_active" ON "roles" ("slug") WHERE organization_id IS NULL AND deleted_at IS NULL`);
-        await queryRunner.query(`CREATE UNIQUE INDEX "roles_organization_slug_unique_active" ON "roles" ("organization_id", "slug") WHERE deleted_at IS NULL`);
         await queryRunner.query(`CREATE TABLE "api_keys" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "name" text NOT NULL, "prefix" text NOT NULL, "key_hash" text NOT NULL, "scopes" jsonb NOT NULL DEFAULT '[]', "status" character varying NOT NULL DEFAULT 'active', "last_used_at" TIMESTAMP WITH TIME ZONE, "last_used_ip" inet, "last_used_user_agent" text, "expires_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "revoked_at" TIMESTAMP WITH TIME ZONE, "deleted_at" TIMESTAMP WITH TIME ZONE, "metadata" jsonb NOT NULL DEFAULT '{}', "organization_id" uuid, "user_id" uuid, "role_id" uuid, "created_by" uuid, CONSTRAINT "PK_5c8a79801b44bd27b79228e1dad" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE INDEX "api_keys_last_used_at_idx" ON "api_keys" ("last_used_at") `);
         await queryRunner.query(`CREATE INDEX "api_keys_created_by_idx" ON "api_keys" ("created_by") `);
@@ -88,6 +107,15 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "sync_reports_environment_id_idx" ON "sync_reports" ("environment_id") `);
         await queryRunner.query(`CREATE INDEX "sync_reports_project_id_idx" ON "sync_reports" ("project_id") `);
         await queryRunner.query(`CREATE INDEX "sync_reports_app_id_idx" ON "sync_reports" ("app_id") `);
+        await queryRunner.query(`CREATE TABLE "project_members" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "member_type" character varying NOT NULL, "status" character varying NOT NULL DEFAULT 'active', "metadata" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "project_id" uuid, "membership_id" uuid, "team_id" uuid, "role_id" uuid, CONSTRAINT "project_members_exactly_one_member" CHECK ((("membership_id" IS NOT NULL AND "team_id" IS NULL AND "member_type" = 'user') OR ("membership_id" IS NULL AND "team_id" IS NOT NULL AND "member_type" = 'team'))), CONSTRAINT "PK_0b2f46f804be4aea9234c78bcc9" PRIMARY KEY ("id"))`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "project_members_project_team_unique_active" ON "project_members" ("project_id", "team_id") WHERE team_id IS NOT NULL AND deleted_at IS NULL`);
+        await queryRunner.query(`CREATE UNIQUE INDEX "project_members_project_membership_unique_active" ON "project_members" ("project_id", "membership_id") WHERE membership_id IS NOT NULL AND deleted_at IS NULL`);
+        await queryRunner.query(`CREATE INDEX "project_members_status_idx" ON "project_members" ("status") `);
+        await queryRunner.query(`CREATE INDEX "project_members_member_type_idx" ON "project_members" ("member_type") `);
+        await queryRunner.query(`CREATE INDEX "project_members_role_id_idx" ON "project_members" ("role_id") `);
+        await queryRunner.query(`CREATE INDEX "project_members_team_id_idx" ON "project_members" ("team_id") `);
+        await queryRunner.query(`CREATE INDEX "project_members_membership_id_idx" ON "project_members" ("membership_id") `);
+        await queryRunner.query(`CREATE INDEX "project_members_project_id_idx" ON "project_members" ("project_id") `);
         await queryRunner.query(`CREATE TABLE "merge_requests" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "title" text NOT NULL, "description" text, "status" character varying NOT NULL DEFAULT 'open', "review_status" character varying NOT NULL DEFAULT 'pending', "changelog" text, "source_version" text, "target_version" text, "checks" jsonb NOT NULL DEFAULT '{}', "metadata" jsonb NOT NULL DEFAULT '{}', "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "merged_at" TIMESTAMP WITH TIME ZONE, "closed_at" TIMESTAMP WITH TIME ZONE, "conflict_at" TIMESTAMP WITH TIME ZONE, "deleted_at" TIMESTAMP WITH TIME ZONE, "project_id" uuid, "source_environment_id" uuid, "target_environment_id" uuid, "created_by" uuid, "merged_by" uuid, "closed_by" uuid, CONSTRAINT "PK_b6c55799f59a81ea08fb03dedd1" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE INDEX "merge_requests_created_at_idx" ON "merge_requests" ("created_at") `);
         await queryRunner.query(`CREATE INDEX "merge_requests_merged_by_idx" ON "merge_requests" ("merged_by") `);
@@ -106,15 +134,15 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "merge_conflicts_token_id_idx" ON "merge_conflicts" ("token_id") `);
         await queryRunner.query(`CREATE INDEX "merge_conflicts_merge_request_id_idx" ON "merge_conflicts" ("merge_request_id") `);
         await queryRunner.query(`CREATE UNIQUE INDEX "merge_conflicts_request_token_path_unique_active" ON "merge_conflicts" ("merge_request_id", "token_path") WHERE deleted_at IS NULL`);
-        await queryRunner.query(`CREATE TABLE "memberships" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "status" character varying NOT NULL DEFAULT 'active', "invited_at" TIMESTAMP WITH TIME ZONE, "joined_at" TIMESTAMP WITH TIME ZONE, "suspended_at" TIMESTAMP WITH TIME ZONE, "removed_at" TIMESTAMP WITH TIME ZONE, "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP WITH TIME ZONE, "organization_id" uuid, "user_id" uuid, "role_id" uuid, "invited_by" uuid, CONSTRAINT "PK_25d28bd932097a9e90495ede7b4" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`CREATE INDEX "memberships_status_idx" ON "memberships" ("status") `);
-        await queryRunner.query(`CREATE INDEX "memberships_role_id_idx" ON "memberships" ("role_id") `);
-        await queryRunner.query(`CREATE INDEX "memberships_user_id_idx" ON "memberships" ("user_id") `);
-        await queryRunner.query(`CREATE INDEX "memberships_organization_id_idx" ON "memberships" ("organization_id") `);
-        await queryRunner.query(`CREATE UNIQUE INDEX "memberships_organization_user_unique_active" ON "memberships" ("organization_id", "user_id") WHERE deleted_at IS NULL`);
         await queryRunner.query(`CREATE TABLE "role_permissions" ("role_id" uuid NOT NULL, "permission_id" uuid NOT NULL, CONSTRAINT "PK_25d24010f53bb80b78e412c9656" PRIMARY KEY ("role_id", "permission_id"))`);
         await queryRunner.query(`CREATE INDEX "IDX_178199805b901ccd220ab7740e" ON "role_permissions" ("role_id") `);
         await queryRunner.query(`CREATE INDEX "IDX_17022daf3f885f7d35423e9971" ON "role_permissions" ("permission_id") `);
+        await queryRunner.query(`ALTER TABLE "refresh_tokens" ADD CONSTRAINT "FK_3ddc983c5f7bcf132fd8732c3f4" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "roles" ADD CONSTRAINT "FK_c328a1ecd12a5f153a96df4509e" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_e5380c394ec7912046d07b54290" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_7c1e2fdfed4f6838e0c05ae5051" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_2fb8d236390c9977525fc4596ad" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_53f232a87d8aebb77ba3bece65a" FOREIGN KEY ("invited_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "projects" ADD CONSTRAINT "FK_585c8ce06628c70b70100bfb842" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "environments" ADD CONSTRAINT "FK_e6abd34366a5d759985d0677616" FOREIGN KEY ("project_id") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "tokens" ADD CONSTRAINT "FK_c62fc4ab4686bb2b90a4505760b" FOREIGN KEY ("project_id") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
@@ -133,10 +161,13 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "themes" ADD CONSTRAINT "FK_6581951aeb56f11d3179af522e5" FOREIGN KEY ("extends_theme_id") REFERENCES "themes"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "theme_overrides" ADD CONSTRAINT "FK_f3b20c7aa5221a7eb1cfc34b64b" FOREIGN KEY ("theme_id") REFERENCES "themes"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "theme_overrides" ADD CONSTRAINT "FK_80c414497d34dcdd1d6fa65f336" FOREIGN KEY ("token_id") REFERENCES "tokens"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "team_memberships" ADD CONSTRAINT "FK_b917b8603c6d5c526fcdb2009de" FOREIGN KEY ("team_id") REFERENCES "teams"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "team_memberships" ADD CONSTRAINT "FK_dd1f63903a63a80983bab747fdc" FOREIGN KEY ("membership_id") REFERENCES "memberships"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "team_memberships" ADD CONSTRAINT "FK_37dc0b572a9a59825f62d94297a" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "teams" ADD CONSTRAINT "FK_fdc736f761896ccc179c823a785" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "apps" ADD CONSTRAINT "FK_73348049217c53d971b890800d4" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "apps" ADD CONSTRAINT "FK_2f16f71edb701c7dbe0a429f3d7" FOREIGN KEY ("project_id") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "apps" ADD CONSTRAINT "FK_c9a9b13e5adbae054abde7f8132" FOREIGN KEY ("environment_id") REFERENCES "environments"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "roles" ADD CONSTRAINT "FK_c328a1ecd12a5f153a96df4509e" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "api_keys" ADD CONSTRAINT "FK_a283bdef18876e525aefaec042f" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "api_keys" ADD CONSTRAINT "FK_a3baee01d8408cd3c0f89a9a973" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "api_keys" ADD CONSTRAINT "FK_0a4ace2ba56f859006688e29447" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
@@ -146,6 +177,10 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "sync_reports" ADD CONSTRAINT "FK_be78d6a1993e846e7629f37a479" FOREIGN KEY ("environment_id") REFERENCES "environments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "sync_reports" ADD CONSTRAINT "FK_a35b184ac6365d09b8602eb2c87" FOREIGN KEY ("triggered_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "sync_reports" ADD CONSTRAINT "FK_b5cfb3305668ff2414fbf0231a0" FOREIGN KEY ("api_key_id") REFERENCES "api_keys"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "project_members" ADD CONSTRAINT "FK_b5729113570c20c7e214cf3f58d" FOREIGN KEY ("project_id") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "project_members" ADD CONSTRAINT "FK_ab822936d927bcaa69b527d5589" FOREIGN KEY ("membership_id") REFERENCES "memberships"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "project_members" ADD CONSTRAINT "FK_7eb32f8d071861fffe502f70ac3" FOREIGN KEY ("team_id") REFERENCES "teams"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "project_members" ADD CONSTRAINT "FK_47b9998e6fef04f3e85e1e60948" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "merge_requests" ADD CONSTRAINT "FK_d87141b378686f82fc9eca6d39a" FOREIGN KEY ("project_id") REFERENCES "projects"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "merge_requests" ADD CONSTRAINT "FK_d89a34c610abac0667dbd61a34d" FOREIGN KEY ("source_environment_id") REFERENCES "environments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "merge_requests" ADD CONSTRAINT "FK_59158e1e52dfcb3a0a7e7dd4ff7" FOREIGN KEY ("target_environment_id") REFERENCES "environments"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
@@ -155,10 +190,6 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "merge_conflicts" ADD CONSTRAINT "FK_28beafca17fec2790dd03b86923" FOREIGN KEY ("merge_request_id") REFERENCES "merge_requests"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "merge_conflicts" ADD CONSTRAINT "FK_c1971bee2f776422b2907f22c39" FOREIGN KEY ("token_id") REFERENCES "tokens"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "merge_conflicts" ADD CONSTRAINT "FK_a24d97fff639d2973bcc47051e3" FOREIGN KEY ("resolved_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_e5380c394ec7912046d07b54290" FOREIGN KEY ("organization_id") REFERENCES "organizations"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_7c1e2fdfed4f6838e0c05ae5051" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_2fb8d236390c9977525fc4596ad" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "memberships" ADD CONSTRAINT "FK_53f232a87d8aebb77ba3bece65a" FOREIGN KEY ("invited_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "role_permissions" ADD CONSTRAINT "FK_178199805b901ccd220ab7740ec" FOREIGN KEY ("role_id") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
         await queryRunner.query(`ALTER TABLE "role_permissions" ADD CONSTRAINT "FK_17022daf3f885f7d35423e9971e" FOREIGN KEY ("permission_id") REFERENCES "permissions"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
     }
@@ -166,10 +197,6 @@ export class Migration1777612802769 implements MigrationInterface {
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(`ALTER TABLE "role_permissions" DROP CONSTRAINT "FK_17022daf3f885f7d35423e9971e"`);
         await queryRunner.query(`ALTER TABLE "role_permissions" DROP CONSTRAINT "FK_178199805b901ccd220ab7740ec"`);
-        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_53f232a87d8aebb77ba3bece65a"`);
-        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_2fb8d236390c9977525fc4596ad"`);
-        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_7c1e2fdfed4f6838e0c05ae5051"`);
-        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_e5380c394ec7912046d07b54290"`);
         await queryRunner.query(`ALTER TABLE "merge_conflicts" DROP CONSTRAINT "FK_a24d97fff639d2973bcc47051e3"`);
         await queryRunner.query(`ALTER TABLE "merge_conflicts" DROP CONSTRAINT "FK_c1971bee2f776422b2907f22c39"`);
         await queryRunner.query(`ALTER TABLE "merge_conflicts" DROP CONSTRAINT "FK_28beafca17fec2790dd03b86923"`);
@@ -179,6 +206,10 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "merge_requests" DROP CONSTRAINT "FK_59158e1e52dfcb3a0a7e7dd4ff7"`);
         await queryRunner.query(`ALTER TABLE "merge_requests" DROP CONSTRAINT "FK_d89a34c610abac0667dbd61a34d"`);
         await queryRunner.query(`ALTER TABLE "merge_requests" DROP CONSTRAINT "FK_d87141b378686f82fc9eca6d39a"`);
+        await queryRunner.query(`ALTER TABLE "project_members" DROP CONSTRAINT "FK_47b9998e6fef04f3e85e1e60948"`);
+        await queryRunner.query(`ALTER TABLE "project_members" DROP CONSTRAINT "FK_7eb32f8d071861fffe502f70ac3"`);
+        await queryRunner.query(`ALTER TABLE "project_members" DROP CONSTRAINT "FK_ab822936d927bcaa69b527d5589"`);
+        await queryRunner.query(`ALTER TABLE "project_members" DROP CONSTRAINT "FK_b5729113570c20c7e214cf3f58d"`);
         await queryRunner.query(`ALTER TABLE "sync_reports" DROP CONSTRAINT "FK_b5cfb3305668ff2414fbf0231a0"`);
         await queryRunner.query(`ALTER TABLE "sync_reports" DROP CONSTRAINT "FK_a35b184ac6365d09b8602eb2c87"`);
         await queryRunner.query(`ALTER TABLE "sync_reports" DROP CONSTRAINT "FK_be78d6a1993e846e7629f37a479"`);
@@ -188,10 +219,13 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "api_keys" DROP CONSTRAINT "FK_0a4ace2ba56f859006688e29447"`);
         await queryRunner.query(`ALTER TABLE "api_keys" DROP CONSTRAINT "FK_a3baee01d8408cd3c0f89a9a973"`);
         await queryRunner.query(`ALTER TABLE "api_keys" DROP CONSTRAINT "FK_a283bdef18876e525aefaec042f"`);
-        await queryRunner.query(`ALTER TABLE "roles" DROP CONSTRAINT "FK_c328a1ecd12a5f153a96df4509e"`);
         await queryRunner.query(`ALTER TABLE "apps" DROP CONSTRAINT "FK_c9a9b13e5adbae054abde7f8132"`);
         await queryRunner.query(`ALTER TABLE "apps" DROP CONSTRAINT "FK_2f16f71edb701c7dbe0a429f3d7"`);
         await queryRunner.query(`ALTER TABLE "apps" DROP CONSTRAINT "FK_73348049217c53d971b890800d4"`);
+        await queryRunner.query(`ALTER TABLE "teams" DROP CONSTRAINT "FK_fdc736f761896ccc179c823a785"`);
+        await queryRunner.query(`ALTER TABLE "team_memberships" DROP CONSTRAINT "FK_37dc0b572a9a59825f62d94297a"`);
+        await queryRunner.query(`ALTER TABLE "team_memberships" DROP CONSTRAINT "FK_dd1f63903a63a80983bab747fdc"`);
+        await queryRunner.query(`ALTER TABLE "team_memberships" DROP CONSTRAINT "FK_b917b8603c6d5c526fcdb2009de"`);
         await queryRunner.query(`ALTER TABLE "theme_overrides" DROP CONSTRAINT "FK_80c414497d34dcdd1d6fa65f336"`);
         await queryRunner.query(`ALTER TABLE "theme_overrides" DROP CONSTRAINT "FK_f3b20c7aa5221a7eb1cfc34b64b"`);
         await queryRunner.query(`ALTER TABLE "themes" DROP CONSTRAINT "FK_6581951aeb56f11d3179af522e5"`);
@@ -210,15 +244,15 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "tokens" DROP CONSTRAINT "FK_c62fc4ab4686bb2b90a4505760b"`);
         await queryRunner.query(`ALTER TABLE "environments" DROP CONSTRAINT "FK_e6abd34366a5d759985d0677616"`);
         await queryRunner.query(`ALTER TABLE "projects" DROP CONSTRAINT "FK_585c8ce06628c70b70100bfb842"`);
+        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_53f232a87d8aebb77ba3bece65a"`);
+        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_2fb8d236390c9977525fc4596ad"`);
+        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_7c1e2fdfed4f6838e0c05ae5051"`);
+        await queryRunner.query(`ALTER TABLE "memberships" DROP CONSTRAINT "FK_e5380c394ec7912046d07b54290"`);
+        await queryRunner.query(`ALTER TABLE "roles" DROP CONSTRAINT "FK_c328a1ecd12a5f153a96df4509e"`);
+        await queryRunner.query(`ALTER TABLE "refresh_tokens" DROP CONSTRAINT "FK_3ddc983c5f7bcf132fd8732c3f4"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_17022daf3f885f7d35423e9971"`);
         await queryRunner.query(`DROP INDEX "public"."IDX_178199805b901ccd220ab7740e"`);
         await queryRunner.query(`DROP TABLE "role_permissions"`);
-        await queryRunner.query(`DROP INDEX "public"."memberships_organization_user_unique_active"`);
-        await queryRunner.query(`DROP INDEX "public"."memberships_organization_id_idx"`);
-        await queryRunner.query(`DROP INDEX "public"."memberships_user_id_idx"`);
-        await queryRunner.query(`DROP INDEX "public"."memberships_role_id_idx"`);
-        await queryRunner.query(`DROP INDEX "public"."memberships_status_idx"`);
-        await queryRunner.query(`DROP TABLE "memberships"`);
         await queryRunner.query(`DROP INDEX "public"."merge_conflicts_request_token_path_unique_active"`);
         await queryRunner.query(`DROP INDEX "public"."merge_conflicts_merge_request_id_idx"`);
         await queryRunner.query(`DROP INDEX "public"."merge_conflicts_token_id_idx"`);
@@ -237,6 +271,15 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "public"."merge_requests_merged_by_idx"`);
         await queryRunner.query(`DROP INDEX "public"."merge_requests_created_at_idx"`);
         await queryRunner.query(`DROP TABLE "merge_requests"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_project_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_membership_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_team_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_role_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_member_type_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_status_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_project_membership_unique_active"`);
+        await queryRunner.query(`DROP INDEX "public"."project_members_project_team_unique_active"`);
+        await queryRunner.query(`DROP TABLE "project_members"`);
         await queryRunner.query(`DROP INDEX "public"."sync_reports_app_id_idx"`);
         await queryRunner.query(`DROP INDEX "public"."sync_reports_project_id_idx"`);
         await queryRunner.query(`DROP INDEX "public"."sync_reports_environment_id_idx"`);
@@ -255,11 +298,6 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "public"."api_keys_created_by_idx"`);
         await queryRunner.query(`DROP INDEX "public"."api_keys_last_used_at_idx"`);
         await queryRunner.query(`DROP TABLE "api_keys"`);
-        await queryRunner.query(`DROP INDEX "public"."roles_organization_slug_unique_active"`);
-        await queryRunner.query(`DROP INDEX "public"."roles_system_slug_unique_active"`);
-        await queryRunner.query(`DROP TABLE "roles"`);
-        await queryRunner.query(`DROP INDEX "public"."permissions_slug_unique_active"`);
-        await queryRunner.query(`DROP TABLE "permissions"`);
         await queryRunner.query(`DROP INDEX "public"."apps_project_environment_slug_unique_active"`);
         await queryRunner.query(`DROP INDEX "public"."apps_organization_id_idx"`);
         await queryRunner.query(`DROP INDEX "public"."apps_project_id_idx"`);
@@ -269,6 +307,16 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "public"."apps_status_idx"`);
         await queryRunner.query(`DROP INDEX "public"."apps_sync_status_idx"`);
         await queryRunner.query(`DROP TABLE "apps"`);
+        await queryRunner.query(`DROP INDEX "public"."teams_organization_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."teams_status_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."teams_organization_slug_unique_active"`);
+        await queryRunner.query(`DROP TABLE "teams"`);
+        await queryRunner.query(`DROP INDEX "public"."team_memberships_team_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."team_memberships_membership_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."team_memberships_role_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."team_memberships_status_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."team_memberships_team_membership_unique_active"`);
+        await queryRunner.query(`DROP TABLE "team_memberships"`);
         await queryRunner.query(`DROP INDEX "public"."theme_overrides_theme_token_unique_active"`);
         await queryRunner.query(`DROP INDEX "public"."theme_overrides_theme_id_idx"`);
         await queryRunner.query(`DROP INDEX "public"."theme_overrides_token_id_idx"`);
@@ -317,10 +365,24 @@ export class Migration1777612802769 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX "public"."projects_organization_id_idx"`);
         await queryRunner.query(`DROP INDEX "public"."projects_status_idx"`);
         await queryRunner.query(`DROP TABLE "projects"`);
-        await queryRunner.query(`DROP INDEX "public"."organizations_slug_unique_active"`);
-        await queryRunner.query(`DROP TABLE "organizations"`);
         await queryRunner.query(`DROP INDEX "public"."users_email_unique_active"`);
         await queryRunner.query(`DROP TABLE "users"`);
+        await queryRunner.query(`DROP INDEX "public"."memberships_organization_user_unique_active"`);
+        await queryRunner.query(`DROP INDEX "public"."memberships_organization_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."memberships_user_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."memberships_role_id_idx"`);
+        await queryRunner.query(`DROP INDEX "public"."memberships_status_idx"`);
+        await queryRunner.query(`DROP TABLE "memberships"`);
+        await queryRunner.query(`DROP INDEX "public"."roles_organization_slug_unique_active"`);
+        await queryRunner.query(`DROP INDEX "public"."roles_system_slug_unique_active"`);
+        await queryRunner.query(`DROP TABLE "roles"`);
+        await queryRunner.query(`DROP INDEX "public"."permissions_slug_unique_active"`);
+        await queryRunner.query(`DROP TABLE "permissions"`);
+        await queryRunner.query(`DROP INDEX "public"."organizations_slug_unique_active"`);
+        await queryRunner.query(`DROP TABLE "organizations"`);
+        await queryRunner.query(`DROP INDEX "public"."idx_refresh_token_user_id"`);
+        await queryRunner.query(`DROP INDEX "public"."idx_refresh_token_expires_at"`);
+        await queryRunner.query(`DROP TABLE "refresh_tokens"`);
     }
 
 }

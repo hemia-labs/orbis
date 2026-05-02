@@ -8,6 +8,15 @@ declare global {
       email: string;
       name: string;
       avatarUrl?: string | null;
+      membership?: {
+        organization: {
+          id: string;
+          name: string;
+          slug: string;
+        };
+        roles: string[];
+        permissions: string[];
+      } | null;
       roles: string[];
       permissions: string[];
       lastLogin?: Date | string;

@@ -3,8 +3,6 @@ import { Injectable } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
-import { last } from 'rxjs';
-
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -35,15 +33,19 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: any) {
+    const roles = payload.membership?.roles ?? [];
+    const permissions = payload.membership?.permissions ?? [];
+
     return {
       userId: payload.sub,
       email: payload.email,
       name: payload.name,
       lastName: payload.lastName,
       avatarUrl: payload.avatarUrl ?? null,
-      roles: payload.roles,
-      permissions: payload.permissions,
-      lastLogin: payload.lastLogin
+      lastLogin: payload.lastLogin,
+      membership: payload.membership ?? null,
+      roles,
+      permissions,
     };
   }
 }

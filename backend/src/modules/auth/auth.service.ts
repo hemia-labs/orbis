@@ -7,6 +7,16 @@ import { randomBytes } from 'crypto';
 import { RefreshTokenService } from './refresh-token/refresh-token.service';
 import { UsersService } from '../users/users.service';
 
+interface AuthMembershipPayload {
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  roles: string[];
+  permissions: string[];
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -27,12 +37,7 @@ export class AuthService {
    * @returns Tokens de acceso y refresh
    */
   async generateAuthTokens(user: UserDto): Promise<AuthResponseDto> {
-    const roles = user.roles?.map((r) => r.slug) ?? [];
-    const permissionsSet = new Set<string>();
-    user.roles?.forEach((r) =>
-      r.permissions?.forEach((p) => permissionsSet.add(p.slug)),
-    );
-    const permissions = Array.from(permissionsSet);
+    const membership = this.getActiveMembershipPayload(user);
     const lastLogin = new Date();
 
     const payload = {
@@ -40,9 +45,8 @@ export class AuthService {
       email: user.email,
       name: user.name,
       avatarUrl: user.avatar ?? null,
-      roles,
-      permissions,
-      lastLogin: lastLogin,
+      lastLogin: lastLogin.toISOString(),
+      membership,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -74,6 +78,38 @@ export class AuthService {
           maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
         },
       },
+    };
+  }
+
+  private getActiveMembershipPayload(user: UserDto): AuthMembershipPayload {
+    const activeMembership = user.memberships?.find(
+      (membership) =>
+        membership.status === 'active' &&
+        membership.organization &&
+        membership.role,
+    );
+
+    if (!activeMembership?.organization || !activeMembership.role) {
+      throw new UnauthorizedException(
+        'El usuario no tiene una organizacion activa',
+      );
+    }
+
+    const permissions = Array.from(
+      new Set(
+        activeMembership.role.permissions?.map((permission) => permission.slug) ??
+          [],
+      ),
+    );
+
+    return {
+      organization: {
+        id: activeMembership.organization.id,
+        name: activeMembership.organization.name,
+        slug: activeMembership.organization.slug,
+      },
+      roles: [activeMembership.role.slug],
+      permissions,
     };
   }
 

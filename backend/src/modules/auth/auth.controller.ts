@@ -1,0 +1,89 @@
+
+import { LocalAuthGuard } from "@/common/guards/local-auth.guard";
+import { AuthService } from "./auth.service";
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, Res, UnauthorizedException, UseGuards, ValidationPipe } from "@nestjs/common";
+import { LoginDto } from "./dtos/login.dto";
+import { type Request, type Response } from "express";
+import { JwtAuthGuard } from "@/common/guards/jwt-auth.guard";
+import { UserDto } from "../users/dtos/user.dto";
+
+type RequestWithUser<TUser> = Request & { user: TUser };
+
+@Controller('api/v1/auth')
+export class AuthController {
+  constructor(
+    private authService: AuthService, 
+  ) {}
+
+
+  @UseGuards(LocalAuthGuard)
+  @Post('login')
+  async login(
+    @Body(ValidationPipe) loginDto: LoginDto,
+    @Req() req: RequestWithUser<UserDto>,
+    @Res({ passthrough: true }) 
+    response: Response
+) {
+    const authResult = await this.authService.generateAuthTokens(req.user);
+
+    response.cookie('access_token', authResult.accessToken, authResult.cookies.access);
+    response.cookie('refresh_token', authResult.refreshToken, authResult.cookies.refresh);
+
+    return true;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getProfile(@Req() req: RequestWithUser<Express.User>) {
+    const { userId, email, name, avatarUrl, membership, lastLogin } = req.user;
+
+    return {
+      user: {
+        id: userId,
+        email,
+        name,
+        avatarUrl: avatarUrl ?? null,
+        emailVerified: true,
+        lastLogin: new Date(lastLogin).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' }),
+      },
+      membership,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @HttpCode(200)
+  async logout(@Req() req: RequestWithUser<Express.User>, @Res({ passthrough: true }) response: Response) {
+    response.clearCookie('access_token');
+    response.clearCookie('refresh_token');
+    await this.authService.logout(req.user.userId);
+    return true;
+  }
+
+  @Post('refresh')
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const oldRefreshToken = req.cookies['refresh_token'];
+    
+    if (!oldRefreshToken) {
+      throw new UnauthorizedException('No refresh token found');
+    }
+
+    try {
+        const { accessToken, refreshToken, cookies } = await this.authService.refresh(oldRefreshToken);
+        response.cookie('access_token', accessToken, cookies.access);
+        response.cookie('refresh_token', refreshToken, cookies.refresh);
+
+        return { message: 'Token refreshed' };  
+    } catch (error) {
+      response.clearCookie('access_token');
+      response.clearCookie('refresh_token');
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+  }
+
+
+}

@@ -18,6 +18,7 @@ import { ThemesModule } from './modules/themes/themes.module';
 import { TokensModule } from './modules/tokens/tokens.module';
 import { UsersModule } from './modules/users/users.module';
 import { TeamsModule } from './modules/teams/teams.module';
+import { AuthModule } from './modules/auth/auth.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { TeamsModule } from './modules/teams/teams.module';
     TokensModule,
     UsersModule,
     TeamsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

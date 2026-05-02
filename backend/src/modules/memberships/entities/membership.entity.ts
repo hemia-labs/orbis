@@ -14,10 +14,14 @@ import { User } from '../../users/entities/user.entity';
 import { Role } from '../../roles/entities/role.entity';
 
 @Entity('memberships')
-@Index('memberships_organization_user_unique_active', ['organization', 'user'], {
-  unique: true,
-  where: 'deleted_at IS NULL',
-})
+@Index(
+  'memberships_organization_user_unique_active',
+  ['organization', 'user'],
+  {
+    unique: true,
+    where: 'deleted_at IS NULL',
+  },
+)
 @Index('memberships_organization_id_idx', ['organization'])
 @Index('memberships_user_id_idx', ['user'])
 @Index('memberships_role_id_idx', ['role'])
@@ -30,7 +34,7 @@ export class Membership {
   @JoinColumn({ name: 'organization_id' })
   organization: Organization;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.memberships, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
 

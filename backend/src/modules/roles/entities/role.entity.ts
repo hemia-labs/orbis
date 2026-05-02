@@ -44,7 +44,7 @@ export class Role {
   description: string | null;
 
   @Column({ type: 'varchar', default: 'organization' })
-  scope: 'system' | 'organization' | 'project' | 'team' | 'user';
+  scope: 'system' | 'organization' | 'project' | 'team' | 'user' | string;
 
   @Column({ type: 'integer', default: 100 })
   level: number;

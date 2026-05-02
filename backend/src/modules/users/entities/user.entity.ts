@@ -1,3 +1,5 @@
+import RefreshToken from '@/modules/auth/entities/refresh-token.entity';
+import Membership from '@/modules/memberships/entities/membership.entity';
 import {
   Entity,
   Column,
@@ -6,6 +8,7 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
   Index,
+  OneToMany,
 } from 'typeorm';
 
 @Entity('users')
@@ -52,6 +55,12 @@ export class User {
 
   @DeleteDateColumn({ name: 'deleted_at', type: 'timestamptz', nullable: true })
   deletedAt: Date | null;
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
+
+  @OneToMany(() => Membership, (membership) => membership.user)
+  memberships: Membership[];
 }
 
 export default User;

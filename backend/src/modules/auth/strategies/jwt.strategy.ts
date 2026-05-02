@@ -1,0 +1,49 @@
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Injectable } from "@nestjs/common";
+import { PassportStrategy } from "@nestjs/passport";
+import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
+import { last } from 'rxjs';
+
+
+@Injectable()
+export class JwtStrategy extends PassportStrategy(Strategy) {
+  constructor(configService: ConfigService) {
+    const secret = configService.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
+    super({
+      jwtFromRequest: JwtStrategy.extractJWT,
+      ignoreExpiration: false,
+      secretOrKey: secret,
+    });
+  }
+
+  private static extractJWT(req: Request): string | null {
+    const tokenFromHeader = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+    
+    if (tokenFromHeader) {
+      return tokenFromHeader; 
+    }
+
+    if (req.cookies && 'access_token' in req.cookies) {
+      return req.cookies.access_token;
+    }
+
+    return null;
+  }
+
+  async validate(payload: any) {
+    return {
+      userId: payload.sub,
+      email: payload.email,
+      name: payload.name,
+      lastName: payload.lastName,
+      avatarUrl: payload.avatarUrl ?? null,
+      roles: payload.roles,
+      permissions: payload.permissions,
+      lastLogin: payload.lastLogin
+    };
+  }
+}

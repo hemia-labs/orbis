@@ -1,10 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import PrivateLayout from '@/components/core/layouts/PrivateLayout.vue'
 import PublicLayout from '@/components/core/layouts/PublicLayout.vue'
-import LoginView from '@/views/auth/LoginView.vue'
-import RegisterView from '@/views/auth/RegisterView.vue'
-import HomeView from '../views/HomeView.vue'
-import PlaceholderView from '@/views/private/PlaceholderView.vue'
+import { authRoutes } from '@/router/routes/auth.routes'
+import { privateRoutes } from '@/router/routes/private.routes'
+import { useAuthStore } from '@/stores'
+import AuthService from '@/services/auth/auth.service'
+import { can, type PermissionRequirement } from '@/lib/authz'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,70 +13,60 @@ const router = createRouter({
     {
       path: '/',
       component: PrivateLayout,
-      children: [
-        {
-          path: '',
-          name: 'home',
-          component: HomeView,
-          meta: { title: 'Inicio' },
-        },
-        {
-          path: 'projects',
-          name: 'projects',
-          component: PlaceholderView,
-          meta: { title: 'Proyectos' },
-        },
-        {
-          path: 'tokens',
-          name: 'tokens',
-          component: PlaceholderView,
-          meta: { title: 'Tokens' },
-        },
-        {
-          path: 'themes',
-          name: 'themes',
-          component: PlaceholderView,
-          meta: { title: 'Temas' },
-        },
-        {
-          path: 'merge-requests',
-          name: 'merge-requests',
-          component: PlaceholderView,
-          meta: { title: 'Merge requests' },
-        },
-        {
-          path: 'team',
-          name: 'team',
-          component: PlaceholderView,
-          meta: { title: 'Equipo' },
-        },
-        {
-          path: 'settings',
-          name: 'settings',
-          component: PlaceholderView,
-          meta: { title: 'Ajustes' },
-        },
-      ],
+      meta: { requiresAuth: true },
+      children: privateRoutes,
     },
     {
       path: '/',
       component: PublicLayout,
-      children: [
-        {
-          path: 'login',
-          name: 'login',
-          component: LoginView,
-          meta: { guest: true, title: 'Login' },
-        },
-        {
-          path: 'register',
-          name: 'register',
-          component: RegisterView,
-          meta: { guest: true, title: 'Registro' },
-        },
-      ],
+      children: authRoutes,
     },
   ],
+})
+
+
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore()
+  const authService = new AuthService()
+  const isGuestRoute = Boolean(to.meta.guest)
+  const requiresAuth = Boolean(to.meta.requiresAuth)
+  const hasRouteAccess = () => {
+    const permissions = authStore.currentUser?.membership?.permissions ?? []
+    const routePermissions = to.meta.permissions as PermissionRequirement | undefined
+
+    return can(permissions, routePermissions)
+  }
+
+  const authenticate = async () => {
+    if (authStore.isAuthenticated) {
+      return true
+    }
+
+    try {
+      const authSession = await authService.me()
+      authStore.setUser(authSession)
+      return true
+    } catch {
+      authStore.clearUser()
+      return false
+    }
+  }
+
+  const isAuthenticated = await authenticate()
+
+  if (isGuestRoute) {
+    return isAuthenticated ? { path: '/' } : true
+  }
+
+  if (!requiresAuth) {
+    return true
+  }
+
+  if (!isAuthenticated) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  return hasRouteAccess() ? true : { path: '/' }
 })
 
 export default router

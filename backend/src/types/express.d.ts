@@ -7,6 +7,7 @@ declare global {
       userId?: string;
       email: string;
       name: string;
+      lastName?: string | null;
       avatarUrl?: string | null;
       membership?: {
         organization: {

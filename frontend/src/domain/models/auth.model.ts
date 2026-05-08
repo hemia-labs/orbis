@@ -18,8 +18,10 @@ export interface UserProfile {
   id: string
   email: string
   name: string
+  lastName: string | null
   avatarUrl: string | null
   emailVerified: boolean
+  lastLogin: string
 }
 
 export interface UserAuthorization {

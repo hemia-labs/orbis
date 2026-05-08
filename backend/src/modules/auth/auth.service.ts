@@ -44,6 +44,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       name: user.name,
+      lastName: user.lastName,
       avatarUrl: user.avatar ?? null,
       lastLogin: lastLogin.toISOString(),
       membership,
